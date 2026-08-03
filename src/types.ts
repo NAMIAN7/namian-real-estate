@@ -1,0 +1,43 @@
+export type PropertyStatus = 'active' | 'reserved' | 'sold_inactive';
+
+export type PropertyCategory = 
+  | 'خانه' 
+  | 'زمین' 
+  | 'باغ' 
+  | 'مغازه' 
+  | 'اجاره' 
+  | 'نیمهساز';
+
+export interface PropertyFile {
+  id: string;
+  code: string;             // کد فایل: مثلا NMN-101
+  title: string;            // عنوان فایل: مثلا ویلای استخردار دوبلکس کردان
+  propertyType: string;     // نوع ملک: مثلا ویلایی، آپارتمان، کلنگی، اداری
+  category: PropertyCategory; // دسته بندی: خانه، زمین، باغ، مغازه، اجاره، نیمهساز
+  region: string;           // منطقه: مثلا زعفرانیه، الهیه، عظیمیه
+  address: string;          // آدرس دقیق
+  area: number;             // متراژ (متر مربع)
+  price: string;            // قیمت (مثلا ۱۵,۰۰۰,۰۰۰,۰۰۰ تومان یا توافقی)
+  width: string;            // عرض ملک / بر ملک (مثلا ۱۴ متر)
+  bedrooms: number;         // تعداد خواب
+  floor: string;            // طبقه (مثلا طبقه ۳ از ۵ یا همکف)
+  parking: string;          // پارکینگ (مثلا دارد - ۲ سندی)
+  storage: string;          // انباری (مثلا دارد - ۱۲ متر)
+  elevator: string;         // آسانسور (مثلا دارد - لاین ایتالیایی)
+  documentType: string;     // نوع سند (مثلا سند تک برگ ۶ دانگ)
+  description: string;      // توضیحات عمومی ملک
+  privateNote: string;      // یادداشت خصوصی برای همکاران (شماره مالک، شرایط کمیسیون و غیره)
+  status: PropertyStatus;   // وضعیت: فعال، رزرو، فروخته شده/غیرفعال
+  photos: string[];         // لیست آدرس عکس‌ها
+  videos: string[];         // لیست آدرس ویدیوها
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PropertyFilter {
+  search: string;           // جستجو بر اساس کد، منطقه و عنوان
+  status: PropertyStatus | 'all'; // وضعیت
+  category: PropertyCategory | 'all'; // دسته بندی
+  minArea?: number;
+  maxArea?: number;
+}

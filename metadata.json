@@ -1,0 +1,6 @@
+{
+  "name": "املاک نامیان - سیستم مدیریت فایل املاک",
+  "description": "سیستم داخلی مدیریت فایلهای املاک، فایلینگ، گالری تصاویر و ویدیو، فیلتر و جستجوی پیشرفته برای مشاوران املاک نامیان",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
