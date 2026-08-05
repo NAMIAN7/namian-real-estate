@@ -7,6 +7,12 @@
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/api/imagekit-auth"
+  to = "/.netlify/functions/imagekit-auth"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/upload"
   to = "/.netlify/functions/upload"
   status = 200
