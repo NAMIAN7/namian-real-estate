@@ -66,7 +66,12 @@ export default async (req, context) => {
   }
 
   const url = new URL(req.url);
-  const routePath = url.pathname.replace(/^\/\.netlify\/functions\/api\/?/, '');
+  let routePath = url.searchParams.get('path');
+  if (!routePath) {
+    routePath = url.pathname
+      .replace(/^\/\.netlify\/functions\/api\/?/, '')
+      .replace(/^\/api\/?/, '');
+  }
   const segments = routePath.split('/').filter(Boolean);
   const method = req.method;
 
