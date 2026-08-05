@@ -69,20 +69,36 @@ export async function deletePropertyFile(id: string): Promise<any> {
 }
 
 export async function uploadMediaFiles(files: File[]): Promise<string[]> {
-  const formData = new FormData();
-  files.forEach(file => {
-    formData.append('files', file);
-  });
-  const response = await fetch(`${BASE_URL}/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در آپلود رسانه');
+  // Get a fresh, secure upload signature from our tiny server function
+  const authRes = await fetch(`${BASE_URL}/imagekit-auth`);
+  if (!authRes.ok) {
+    throw new Error('خطا در دریافت مجوز آپلود');
   }
-  const data = await response.json();
-  return data.urls;
+  const auth = await authRes.json();
+
+  const urls: string[] = [];
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('fileName', file.name);
+    formData.append('publicKey', auth.publicKey);
+    formData.append('signature', auth.signature);
+    formData.append('expire', String(auth.expire));
+    formData.append('token', auth.token);
+    formData.append('useUniqueFileName', 'true');
+
+    const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'خطا در آپلود رسانه');
+    }
+    const data = await response.json();
+    urls.push(data.url);
+  }
+  return urls;
 }
 
 export async function generateAiDescription(params: {
