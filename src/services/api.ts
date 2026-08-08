@@ -1,4 +1,4 @@
-import { PropertyFile, PropertyStatus } from '../types';
+import { PropertyFile, PropertyStatus, ApplicantRequest } from '../types';
 
 const BASE_URL = '/api';
 
@@ -133,4 +133,50 @@ export async function addSamplePropertyFile(): Promise<PropertyFile[]> {
   }
   const data = await response.json();
   return data.properties;
+}
+
+// ── خواهان‌ها (متقاضیان ملک) ──
+export async function fetchApplicants(): Promise<ApplicantRequest[]> {
+  const response = await fetch(`${BASE_URL}/applicants`);
+  if (!response.ok) {
+    throw new Error('خطا در دریافت لیست خواهان‌ها از سرور');
+  }
+  return response.json();
+}
+
+export async function createApplicant(data: Partial<ApplicantRequest>): Promise<ApplicantRequest> {
+  const response = await fetch(`${BASE_URL}/applicants`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'خطا در ثبت خواهان جدید');
+  }
+  return response.json();
+}
+
+export async function updateApplicant(id: string, data: Partial<ApplicantRequest>): Promise<ApplicantRequest> {
+  const response = await fetch(`${BASE_URL}/applicants/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'خطا در ویرایش مشخصات خواهان');
+  }
+  return response.json();
+}
+
+export async function deleteApplicant(id: string): Promise<any> {
+  const response = await fetch(`${BASE_URL}/applicants/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'خطا در حذف خواهان');
+  }
+  return response.json().catch(() => ({ success: true }));
 }
