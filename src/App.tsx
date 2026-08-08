@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PropertyFile, PropertyFilter, PropertyStatus, PropertyCategory } from './types';
+import { PropertyFile, PropertyFilter, PropertyStatus, PropertyCategory, ApplicantRequest } from './types';
 import { smartSearchMatch } from './utils/search';
 import {
   fetchProperties,
@@ -8,6 +8,10 @@ import {
   deletePropertyFile,
   updatePropertyStatus,
   addSamplePropertyFile,
+  fetchApplicants,
+  createApplicant,
+  updateApplicant,
+  deleteApplicant,
 } from './services/api';
 import { Header } from './components/Header';
 import { StatusTabs } from './components/StatusTabs';
@@ -16,6 +20,9 @@ import { PropertyCard } from './components/PropertyCard';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { PropertyFormModal } from './components/PropertyFormModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { ApplicantCard } from './components/ApplicantCard';
+import { ApplicantFormModal } from './components/ApplicantFormModal';
+import { ApplicantDeleteConfirmModal } from './components/ApplicantDeleteConfirmModal';
 import {
   Building2,
   Plus,
@@ -24,7 +31,9 @@ import {
   CheckCircle2,
   Loader2,
   SearchX,
-  Sparkles
+  Sparkles,
+  Search,
+  UserSearch
 } from 'lucide-react';
 
 export default function App() {
@@ -51,6 +60,16 @@ export default function App() {
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyFile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+
+  // ── خواهان‌ها (متقاضیان ملک) ──
+  const [isApplicantsView, setIsApplicantsView] = useState(false);
+  const [applicants, setApplicants] = useState<ApplicantRequest[]>([]);
+  const [applicantsSearch, setApplicantsSearch] = useState('');
+  const [applicantFormOpen, setApplicantFormOpen] = useState(false);
+  const [editingApplicant, setEditingApplicant] = useState<ApplicantRequest | null>(null);
+  const [applicantToDelete, setApplicantToDelete] = useState<ApplicantRequest | null>(null);
+  const [isDeletingApplicant, setIsDeletingApplicant] = useState(false);
+  const [deleteApplicantError, setDeleteApplicantError] = useState<string | null>(null);
 
   // Sync activeStatusTab with filter.status
   const handleSelectStatusTab = (status: PropertyStatus | 'all') => {
@@ -81,7 +100,74 @@ export default function App() {
 
   useEffect(() => {
     loadProperties();
+    loadApplicants();
   }, []);
+
+  // ── منطق بارگذاری و عملیات خواهان‌ها ──
+  const loadApplicants = async () => {
+    try {
+      const data = await fetchApplicants();
+      setApplicants(data);
+    } catch (err: any) {
+      // خطای بارگذاری خواهان‌ها مانع کار بخش فایل‌های ملک نمی‌شود
+      console.error(err);
+    }
+  };
+
+  const filteredApplicants = useMemo(() => {
+    if (!applicantsSearch.trim()) return applicants;
+    const q = applicantsSearch.trim().toLowerCase();
+    return applicants.filter(a =>
+      a.name?.toLowerCase().includes(q) ||
+      a.phone?.toLowerCase().includes(q) ||
+      a.regions?.toLowerCase().includes(q) ||
+      a.category?.toLowerCase().includes(q) ||
+      a.code?.toLowerCase().includes(q)
+    );
+  }, [applicants, applicantsSearch]);
+
+  const handleOpenNewApplicantForm = () => {
+    setEditingApplicant(null);
+    setApplicantFormOpen(true);
+  };
+
+  const handleOpenEditApplicantForm = (applicant: ApplicantRequest) => {
+    setEditingApplicant(applicant);
+    setApplicantFormOpen(true);
+  };
+
+  const handleSaveApplicant = async (data: Partial<ApplicantRequest>) => {
+    if (editingApplicant) {
+      await updateApplicant(editingApplicant.id, data);
+      showToast(`اطلاعات خواهان «${data.name || editingApplicant.name}» ویرایش شد.`);
+    } else {
+      const created = await createApplicant(data);
+      showToast(`خواهان جدید با کد ${created.code} ثبت شد.`);
+    }
+    await loadApplicants();
+  };
+
+  const handleDeleteApplicant = (applicant: ApplicantRequest) => {
+    setDeleteApplicantError(null);
+    setApplicantToDelete(applicant);
+  };
+
+  const handleConfirmDeleteApplicant = async () => {
+    if (!applicantToDelete) return;
+    setIsDeletingApplicant(true);
+    setDeleteApplicantError(null);
+    try {
+      await deleteApplicant(applicantToDelete.id);
+      setApplicants(prev => prev.filter(a => a.id !== applicantToDelete.id));
+      showToast(`خواهان «${applicantToDelete.name}» حذف شد.`);
+      setApplicantToDelete(null);
+      await loadApplicants();
+    } catch (err: any) {
+      setDeleteApplicantError(err.message || 'خطا در حذف خواهان');
+    } finally {
+      setIsDeletingApplicant(false);
+    }
+  };
 
   // Filtered Properties
   const filteredProperties = useMemo(() => {
@@ -213,13 +299,79 @@ export default function App() {
           </div>
         )}
 
-        {/* Status Tabs ("داشبورد اصلی شامل: 1. فایلهای فعال 2. فایلهای رزرو شده 3. فایلهای فروخته شده / غیر فعال") */}
+        {/* Status Tabs ("داشبورد اصلی شامل: 1. فایلهای فعال 2. فایلهای رزرو شده 3. فایلهای فروخته شده / غیر فعال + خواهان‌ها") */}
         <StatusTabs
           properties={properties}
           activeStatus={activeStatusTab}
-          onSelectStatus={handleSelectStatusTab}
+          onSelectStatus={(status) => {
+            setIsApplicantsView(false);
+            handleSelectStatusTab(status);
+          }}
+          applicantsCount={applicants.length}
+          isApplicantsView={isApplicantsView}
+          onSelectApplicants={() => setIsApplicantsView(true)}
         />
 
+        {isApplicantsView ? (
+          <>
+            {/* نوار جستجو و افزودن خواهان جدید */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#18181f] border border-stone-800">
+                <Search className="w-4 h-4 text-stone-500 shrink-0" />
+                <input
+                  type="text"
+                  value={applicantsSearch}
+                  onChange={(e) => setApplicantsSearch(e.target.value)}
+                  placeholder="جستجوی خواهان (نام، تماس، منطقه، دسته)..."
+                  className="flex-1 bg-transparent text-stone-100 text-sm focus:outline-none placeholder:text-stone-600"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenNewApplicantForm}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-[#0f0f13] font-bold text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition-all whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>افزودن خواهان</span>
+              </button>
+            </div>
+
+            {/* لیست خواهان‌ها */}
+            {filteredApplicants.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
+                {filteredApplicants.map((applicant) => (
+                  <ApplicantCard
+                    key={applicant.id}
+                    applicant={applicant}
+                    onEdit={handleOpenEditApplicantForm}
+                    onDelete={handleDeleteApplicant}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="py-16 bg-[#141418] border border-stone-800/80 rounded-3xl text-center px-4">
+                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-4 text-blue-400">
+                  <UserSearch className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-200 mb-2">
+                  هنوز هیچ خواهانی ثبت نشده
+                </h3>
+                <p className="text-sm text-stone-400 max-w-md mx-auto mb-6">
+                  اطلاعات متقاضیانی که به دنبال ملک هستند را اینجا ثبت کنید تا به‌جای دفترچه کاغذی، دیجیتال و قابل جستجو بماند.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleOpenNewApplicantForm}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-[#0f0f13] text-xs font-bold transition-all shadow-md"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>افزودن اولین خواهان</span>
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+        <>
         {/* Filter Bar (Search by code, title, region + Category filter) */}
         <FilterBar
           filter={filter}
@@ -288,6 +440,8 @@ export default function App() {
             </div>
           </div>
         )}
+        </>
+        )}
 
       </main>
 
@@ -339,6 +493,30 @@ export default function App() {
           if (!isDeleting) setPropertyToDelete(null);
         }}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Add / Edit Applicant Form Modal */}
+      {applicantFormOpen && (
+        <ApplicantFormModal
+          initialData={editingApplicant}
+          onClose={() => {
+            setApplicantFormOpen(false);
+            setEditingApplicant(null);
+          }}
+          onSave={handleSaveApplicant}
+        />
+      )}
+
+      {/* Applicant Delete Confirmation Modal */}
+      <ApplicantDeleteConfirmModal
+        applicant={applicantToDelete}
+        isOpen={!!applicantToDelete}
+        isDeleting={isDeletingApplicant}
+        errorMessage={deleteApplicantError}
+        onClose={() => {
+          if (!isDeletingApplicant) setApplicantToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteApplicant}
       />
 
       {/* Footer */}
