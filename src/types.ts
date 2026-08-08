@@ -17,7 +17,7 @@ export interface PropertyFile {
   region: string;           // منطقه: مثلا زعفرانیه، الهیه، عظیمیه
   address: string;          // آدرس دقیق
   area: number;             // متراژ (متر مربع)
-  price: string;            // قیمت (مثلا ۱۵,۰۰۰,۰۰۰,۰۰۰ تومان یا توافقی)
+  price: string;            // قیمت (مثلا ۱۵,۰۰۰,۰۰۰,۰۰۰ تومان یا توافقی) — برای اجاره استفاده نمی‌شود
   width: string;            // عرض ملک / بر ملک (مثلا ۱۴ متر)
   bedrooms: number;         // تعداد خواب
   floor: string;            // طبقه (مثلا طبقه ۳ از ۵ یا همکف)
@@ -32,6 +32,26 @@ export interface PropertyFile {
   videos: string[];         // لیست آدرس ویدیوها
   createdAt: string;
   updatedAt: string;
+
+  // ── مشترک بین همه‌ی دسته‌ها ──
+  utilities?: string;       // انشعابات (آب، برق، گاز)
+
+  // ── فیلدهای اختصاصیِ «زمین» ──
+  parcelNumber?: string;    // شماره قطعه
+  mapName?: string;         // نام نقشه (مثلا نقشه مهران)
+  landUse?: string;         // کاربری زمین (مسکونی / تجاری / کشاورزی)
+
+  // ── فیلدهای اختصاصیِ «باغ» ──
+  waterWellStatus?: string; // وضعیت آب و چاه
+  hasStructure?: 'بله' | 'خیر' | '';  // آیا بنا / کلبه دارد
+
+  // ── فیلد اختصاصیِ «مغازه» ──
+  ceilingHeight?: string;   // ارتفاع سقف
+
+  // ── فیلدهای اختصاصیِ «اجاره» ──
+  depositAmount?: string;   // مبلغ ودیعه (رهن)
+  monthlyRent?: string;     // اجاره ماهیانه
+  convertible?: 'بله' | 'خیر' | ''; // قابل تبدیل یا نه
 }
 
 export interface PropertyFilter {
