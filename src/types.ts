@@ -61,3 +61,18 @@ export interface PropertyFilter {
   minArea?: number;
   maxArea?: number;
 }
+
+// ── خواهان‌ها (متقاضیان ملک) ──
+export interface ApplicantRequest {
+  id: string;
+  code: string;              // کد خواهان: مثلا KH-101
+  name: string;               // نام مراجعه‌کننده
+  phone: string;               // شماره تماس
+  category: PropertyCategory;  // دسته‌بندی مورد نظر
+  regions: string;              // منطقه یا مناطق مورد نظر (آزاد، با ویرگول جدا می‌شود)
+  budget: string;               // بودجه / سقف قیمت یا شرایط رهن و اجاره
+  area: string;                  // متراژ مورد نیاز (تقریبی)
+  note: string;                   // یادداشت آزاد
+  createdAt: string;
+  updatedAt: string;
+}
