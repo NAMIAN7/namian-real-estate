@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PropertyFile, PropertyCategory, PropertyStatus } from '../types';
 import { uploadMediaFiles, generateAiDescription } from '../services/api';
 import {
   X,
-  Upload,
   Sparkles,
   Lock,
   Image as ImageIcon,
   Video as VideoIcon,
   Trash2,
-  Plus,
   CheckCircle2,
   AlertCircle,
   Building2,
-  Loader2
+  Loader2,
+  Droplets,
+  Ruler,
+  Landmark,
+  Home,
+  KeyRound
 } from 'lucide-react';
 
 interface PropertyFormModalProps {
@@ -59,6 +62,17 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
     status: initialData?.status || 'active',
     photos: initialData?.photos || [],
     videos: initialData?.videos || [],
+    // فیلدهای اختصاصی دسته‌بندی‌ها
+    utilities: initialData?.utilities || '',
+    parcelNumber: initialData?.parcelNumber || '',
+    mapName: initialData?.mapName || '',
+    landUse: initialData?.landUse || 'مسکونی',
+    waterWellStatus: initialData?.waterWellStatus || '',
+    hasStructure: initialData?.hasStructure || 'خیر',
+    ceilingHeight: initialData?.ceilingHeight || '',
+    depositAmount: initialData?.depositAmount || '',
+    monthlyRent: initialData?.monthlyRent || '',
+    convertible: initialData?.convertible || 'خیر',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +81,22 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
+
+  const category = formData.category || 'خانه';
+
+  // ── منطق نمایش/مخفی‌سازی فیلدها بر اساس دسته‌بندی ──
+  const isLand = category === 'زمین';
+  const isGarden = category === 'باغ';
+  const isShop = category === 'مغازه';
+  const isRent = category === 'اجاره';
+
+  const showPrice = !isRent;
+  const showBedrooms = !isLand && !isShop && (!isGarden || formData.hasStructure === 'بله');
+  const showFloor = !isLand && !isGarden;
+  const showParking = !isLand;
+  const showStorage = !isLand;
+  const showElevator = !isLand && !isGarden;
+  const showCategoryExtrasBlock = isLand || isGarden || isShop || isRent;
 
   const handleChange = (field: keyof PropertyFile, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -169,7 +199,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-[#141418] border border-amber-500/30 rounded-3xl max-w-4xl w-full max-h-[94vh] flex flex-col shadow-2xl shadow-black overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header RTL */}
         <div className="flex items-center justify-between p-5 border-b border-stone-800 bg-[#18181f]">
           <div className="flex items-center gap-3">
@@ -205,7 +235,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
 
         {/* Form body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          
+
           {/* Section 1: کد، دسته، وضعیت و عنوان */}
           <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-5 space-y-4">
             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
@@ -321,13 +351,13 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
             </div>
           </div>
 
-          {/* Section 2: متراژ، قیمت، خواب، طبقه و عرض ملک */}
+          {/* Section 2: متراژ، قیمت و ابعاد (بر اساس دسته‌بندی) */}
           <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-5 space-y-4">
             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
-              ۲. ابعاد، متراژ و قیمت
+              ۲. ابعاد، متراژ{showPrice ? ' و قیمت' : ''}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 ${showPrice ? 'sm:grid-cols-3' : ''} gap-4`}>
               <div>
                 <label className="block text-xs font-bold text-stone-300 mb-1.5">
                   متراژ (متر مربع) <span className="text-rose-400">*</span>
@@ -342,47 +372,70 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  قیمت / شرایط مالی
-                </label>
-                <input
-                  type="text"
-                  value={formData.price || ''}
-                  onChange={(e) => handleChange('price', e.target.value)}
-                  placeholder="مثال: ۴۸,۵۰۰,۰۰۰,۰۰۰ تومان (قابل معاوضه)"
-                  className="w-full bg-[#121217] text-amber-300 font-semibold rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+              {showPrice && (
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                    قیمت / شرایط مالی
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.price || ''}
+                    onChange={(e) => handleChange('price', e.target.value)}
+                    placeholder="مثال: ۴۸,۵۰۰,۰۰۰,۰۰۰ تومان (قابل معاوضه)"
+                    className="w-full bg-[#121217] text-amber-300 font-semibold rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  تعداد خواب
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={formData.bedrooms || 0}
-                  onChange={(e) => handleChange('bedrooms', Number(e.target.value))}
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+            {(showBedrooms || showFloor) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {showBedrooms && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      تعداد خواب
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.bedrooms || 0}
+                      onChange={(e) => handleChange('bedrooms', Number(e.target.value))}
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  طبقه / موقعیت
-                </label>
-                <input
-                  type="text"
-                  value={formData.floor || ''}
-                  onChange={(e) => handleChange('floor', e.target.value)}
-                  placeholder="مثال: طبقه ۳ از ۵ / همکف"
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+                {showFloor && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      طبقه / موقعیت
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.floor || ''}
+                      onChange={(e) => handleChange('floor', e.target.value)}
+                      placeholder="مثال: طبقه ۳ از ۵ / همکف"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                )}
 
+                <div>
+                  <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                    عرض ملک / بر اصلی
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.width || ''}
+                    onChange={(e) => handleChange('width', e.target.value)}
+                    placeholder="مثال: ۱۶ متر بر اصلی خیابان ۱۴ متری"
+                    className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {!showBedrooms && !showFloor && (
               <div>
                 <label className="block text-xs font-bold text-stone-300 mb-1.5">
                   عرض ملک / بر اصلی
@@ -392,11 +445,167 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                   value={formData.width || ''}
                   onChange={(e) => handleChange('width', e.target.value)}
                   placeholder="مثال: ۱۶ متر بر اصلی خیابان ۱۴ متری"
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                  className="w-full sm:w-1/3 bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                 />
               </div>
-            </div>
+            )}
           </div>
+
+          {/* Section 2.5: مشخصات اختصاصی دسته‌بندی */}
+          {showCategoryExtrasBlock && (
+            <div className="bg-[#18181f] border border-amber-500/20 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Ruler className="w-3.5 h-3.5" />
+                ۲.۵ مشخصات اختصاصی «{category}»
+              </h3>
+
+              {/* زمین */}
+              {isLand && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      شماره قطعه
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.parcelNumber || ''}
+                      onChange={(e) => handleChange('parcelNumber', e.target.value)}
+                      placeholder="مثال: قطعه ۱۴"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      نام نقشه
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.mapName || ''}
+                      onChange={(e) => handleChange('mapName', e.target.value)}
+                      placeholder="مثال: نقشه مهران"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      کاربری زمین
+                    </label>
+                    <select
+                      value={formData.landUse || 'مسکونی'}
+                      onChange={(e) => handleChange('landUse', e.target.value)}
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="مسکونی">مسکونی</option>
+                      <option value="تجاری">تجاری</option>
+                      <option value="کشاورزی">کشاورزی</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* باغ */}
+              {isGarden && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5 flex items-center gap-1.5">
+                      <Droplets className="w-3.5 h-3.5 text-amber-400" />
+                      وضعیت آب و چاه
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.waterWellStatus || ''}
+                      onChange={(e) => handleChange('waterWellStatus', e.target.value)}
+                      placeholder="مثال: دارد - چاه عمیق ۸۰ متری"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5 flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5 text-amber-400" />
+                      آیا بنا / کلبه دارد؟
+                    </label>
+                    <select
+                      value={formData.hasStructure || 'خیر'}
+                      onChange={(e) => handleChange('hasStructure', e.target.value as 'بله' | 'خیر')}
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="خیر">خیر</option>
+                      <option value="بله">بله</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* مغازه */}
+              {isShop && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      ارتفاع سقف
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.ceilingHeight || ''}
+                      onChange={(e) => handleChange('ceilingHeight', e.target.value)}
+                      placeholder="مثال: ۴.۵ متر"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* اجاره: کارت مشترک ودیعه + اجاره ماهیانه */}
+              {isRent && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-bold text-amber-300">شرایط رهن و اجاره</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                          مبلغ ودیعه (رهن)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.depositAmount || ''}
+                          onChange={(e) => handleChange('depositAmount', e.target.value)}
+                          placeholder="مثال: ۵۰۰,۰۰۰,۰۰۰ تومان"
+                          className="w-full bg-[#121217] text-amber-300 font-semibold rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                          اجاره ماهیانه
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.monthlyRent || ''}
+                          onChange={(e) => handleChange('monthlyRent', e.target.value)}
+                          placeholder="مثال: ۱۵,۰۰۰,۰۰۰ تومان"
+                          className="w-full bg-[#121217] text-amber-300 font-semibold rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      قابل تبدیل به رهن کامل / اجاره کامل؟
+                    </label>
+                    <select
+                      value={formData.convertible || 'خیر'}
+                      onChange={(e) => handleChange('convertible', e.target.value as 'بله' | 'خیر')}
+                      className="w-full sm:w-1/3 bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="خیر">خیر</option>
+                      <option value="بله">بله</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Section 3: امکانات و سند */}
           <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-5 space-y-4">
@@ -404,46 +613,56 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
               ۳. امکانات و سند مالکیت
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  پارکینگ
-                </label>
-                <input
-                  type="text"
-                  value={formData.parking || ''}
-                  onChange={(e) => handleChange('parking', e.target.value)}
-                  placeholder="مثال: دارد (۳ سندی)"
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+            {(showParking || showStorage || showElevator) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {showParking && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      پارکینگ
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.parking || ''}
+                      onChange={(e) => handleChange('parking', e.target.value)}
+                      placeholder="مثال: دارد (۳ سندی)"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  انباری
-                </label>
-                <input
-                  type="text"
-                  value={formData.storage || ''}
-                  onChange={(e) => handleChange('storage', e.target.value)}
-                  placeholder="مثال: دارد (۲۵ متر)"
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+                {showStorage && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      انباری
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.storage || ''}
+                      onChange={(e) => handleChange('storage', e.target.value)}
+                      placeholder="مثال: دارد (۲۵ متر)"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                  آسانسور
-                </label>
-                <input
-                  type="text"
-                  value={formData.elevator || ''}
-                  onChange={(e) => handleChange('elevator', e.target.value)}
-                  placeholder="مثال: دارد (هیدرولیک شیشه‌ای)"
-                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
-                />
+                {showElevator && (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-300 mb-1.5">
+                      آسانسور
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.elevator || ''}
+                      onChange={(e) => handleChange('elevator', e.target.value)}
+                      placeholder="مثال: دارد (هیدرولیک شیشه‌ای)"
+                      className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
+            )}
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-stone-300 mb-1.5">
                   نوع سند
@@ -456,6 +675,20 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                   className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-300 mb-1.5 flex items-center gap-1.5">
+                  <Landmark className="w-3.5 h-3.5 text-amber-400" />
+                  انشعابات (آب، برق، گاز)
+                </label>
+                <input
+                  type="text"
+                  value={formData.utilities || ''}
+                  onChange={(e) => handleChange('utilities', e.target.value)}
+                  placeholder="مثال: آب، برق، گاز کامل"
+                  className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -465,7 +698,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                 ۴. توضیحات عمومی و یادداشت محرمانه
               </h3>
-              
+
               <button
                 type="button"
                 onClick={handleAiEnhance}
