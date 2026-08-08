@@ -1,17 +1,23 @@
 import React from 'react';
 import { PropertyFile, PropertyStatus } from '../types';
-import { CheckCircle2, Clock, Ban, Layers } from 'lucide-react';
+import { CheckCircle2, Clock, Ban, Layers, UserSearch } from 'lucide-react';
 
 interface StatusTabsProps {
   properties: PropertyFile[];
   activeStatus: PropertyStatus | 'all';
   onSelectStatus: (status: PropertyStatus | 'all') => void;
+  applicantsCount?: number;
+  isApplicantsView?: boolean;
+  onSelectApplicants?: () => void;
 }
 
 export const StatusTabs: React.FC<StatusTabsProps> = ({
   properties,
   activeStatus,
   onSelectStatus,
+  applicantsCount = 0,
+  isApplicantsView = false,
+  onSelectApplicants,
 }) => {
   const allCount = properties.length;
   const activeCount = properties.filter(p => p.status === 'active').length;
@@ -57,7 +63,7 @@ export const StatusTabs: React.FC<StatusTabsProps> = ({
     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
       {tabs.map((tab) => {
         const Icon = tab.icon;
-        const isSelected = activeStatus === tab.id;
+        const isSelected = !isApplicantsView && activeStatus === tab.id;
         return (
           <button
             key={tab.id}
@@ -81,6 +87,29 @@ export const StatusTabs: React.FC<StatusTabsProps> = ({
           </button>
         );
       })}
+
+      {/* تب جدا برای بخش خواهان‌ها (متقاضیان ملک) */}
+      {onSelectApplicants && (
+        <button
+          type="button"
+          onClick={onSelectApplicants}
+          className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-semibold whitespace-nowrap transition-all ${
+            isApplicantsView
+              ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-md shadow-black/20 scale-[1.02]'
+              : 'bg-[#18181f] text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200'
+          }`}
+        >
+          <UserSearch className="w-4 h-4" />
+          <span>خواهان‌ها</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              isApplicantsView ? 'bg-blue-500/20 text-blue-300' : 'bg-stone-800 text-stone-400'
+            }`}
+          >
+            {applicantsCount}
+          </span>
+        </button>
+      )}
     </div>
   );
 };
