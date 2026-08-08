@@ -60,6 +60,25 @@ async function writeDatabase(data) {
   await store().setJSON('db', data);
 }
 
+// ── خواهان‌ها (متقاضیان ملک) ──
+function applicantsStore() {
+  return getStore('namian-applicants');
+}
+
+async function readApplicants() {
+  const s = applicantsStore();
+  const data = await s.get('db', { type: 'json' });
+  if (!data || !Array.isArray(data)) {
+    await s.setJSON('db', []);
+    return [];
+  }
+  return data;
+}
+
+async function writeApplicants(data) {
+  await applicantsStore().setJSON('db', data);
+}
+
 export default async (req, context) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: CORS_HEADERS });
@@ -79,6 +98,65 @@ export default async (req, context) => {
     // GET /api/health
     if (segments[0] === 'health') {
       return json({ status: 'ok', app: 'املاک نامیان - سیستم مدیریت فایل املاک' });
+    }
+
+    // ── مسیرهای خواهان‌ها (متقاضیان ملک) ──
+    if (segments[0] === 'applicants') {
+      // /api/applicants/:id
+      if (segments.length === 2) {
+        const id = segments[1];
+        const applicants = await readApplicants();
+        const index = applicants.findIndex((a) => a.id === id);
+
+        if (method === 'GET') {
+          if (index === -1) return json({ error: 'خواهان مورد نظر یافت نشد' }, 404);
+          return json(applicants[index]);
+        }
+
+        if (method === 'PUT') {
+          if (index === -1) return json({ error: 'خواهان مورد نظر یافت نشد' }, 404);
+          const body = await req.json();
+          applicants[index] = {
+            ...applicants[index],
+            ...body,
+            id: applicants[index].id,
+            updatedAt: new Date().toISOString(),
+          };
+          await writeApplicants(applicants);
+          return json(applicants[index]);
+        }
+
+        if (method === 'DELETE') {
+          const target = applicants.find((a) => a.id === id);
+          if (!target) return json({ error: 'خواهان مورد نظر یافت نشد' }, 404);
+          const filtered = applicants.filter((a) => a.id !== id);
+          await writeApplicants(filtered);
+          return json({ success: true, id, message: 'خواهان با موفقیت حذف شد.' });
+        }
+      }
+
+      // /api/applicants (list / create)
+      if (segments.length === 1) {
+        if (method === 'GET') {
+          const applicants = await readApplicants();
+          return json(applicants);
+        }
+        if (method === 'POST') {
+          const body = await req.json();
+          const applicants = await readApplicants();
+          const newApplicant = {
+            id: `kh-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            ...body,
+          };
+          applicants.unshift(newApplicant);
+          await writeApplicants(applicants);
+          return json(newApplicant, 201);
+        }
+      }
+
+      return json({ error: 'Not found' }, 404);
     }
 
     if (segments[0] !== 'properties') {
