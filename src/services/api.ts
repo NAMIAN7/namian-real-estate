@@ -2,6 +2,36 @@ import { PropertyFile, PropertyStatus, ApplicantRequest } from '../types';
 
 const BASE_URL = '/api';
 
+// ── مدیریت رمز عبور مدیریت (برای عملیات افزودن/ویرایش/حذف) ──
+function getAdminPassword(): string {
+  let pass = sessionStorage.getItem('admin_password');
+  if (!pass) {
+    pass = window.prompt('رمز عبور بخش مدیریت را وارد کنید:') || '';
+    if (pass) {
+      sessionStorage.setItem('admin_password', pass);
+    }
+  }
+  return pass;
+}
+
+function clearAdminPassword() {
+  sessionStorage.removeItem('admin_password');
+}
+
+function authHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'X-Admin-Password': getAdminPassword(),
+  };
+}
+
+async function handleAuthError(response: Response) {
+  if (response.status === 401) {
+    // رمز اشتباه بوده، آن را پاک می‌کنیم تا دفعه بعد دوباره بپرسد
+    clearAdminPassword();
+  }
+}
+
 export async function fetchProperties(): Promise<PropertyFile[]> {
   const response = await fetch(`${BASE_URL}/properties`);
   if (!response.ok) {
@@ -21,12 +51,13 @@ export async function fetchPropertyById(id: string): Promise<PropertyFile> {
 export async function createPropertyFile(data: Partial<PropertyFile>): Promise<PropertyFile> {
   const response = await fetch(`${BASE_URL}/properties`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در ثبت فایل جدید');
+    await handleAuthError(response);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در ثبت فایل جدید'));
   }
   return response.json();
 }
@@ -34,12 +65,13 @@ export async function createPropertyFile(data: Partial<PropertyFile>): Promise<P
 export async function updatePropertyFile(id: string, data: Partial<PropertyFile>): Promise<PropertyFile> {
   const response = await fetch(`${BASE_URL}/properties/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در ویرایش فایل ملک');
+    await handleAuthError(response);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در ویرایش فایل ملک'));
   }
   return response.json();
 }
@@ -47,12 +79,13 @@ export async function updatePropertyFile(id: string, data: Partial<PropertyFile>
 export async function updatePropertyStatus(id: string, status: PropertyStatus): Promise<PropertyFile> {
   const response = await fetch(`${BASE_URL}/properties/${id}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify({ status }),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در تغییر وضعیت ملک');
+    await handleAuthError(response);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در تغییر وضعیت ملک'));
   }
   return response.json();
 }
@@ -60,10 +93,12 @@ export async function updatePropertyStatus(id: string, status: PropertyStatus): 
 export async function deletePropertyFile(id: string): Promise<any> {
   const response = await fetch(`${BASE_URL}/properties/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   });
   if (!response.ok) {
+    await handleAuthError(response);
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'خطا در حذف فایل ملک و رسانه‌های مرتبط');
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در حذف فایل ملک و رسانه‌های مرتبط'));
   }
   return response.json().catch(() => ({ success: true }));
 }
@@ -127,9 +162,11 @@ export async function generateAiDescription(params: {
 export async function addSamplePropertyFile(): Promise<PropertyFile[]> {
   const response = await fetch(`${BASE_URL}/properties/sample/add`, {
     method: 'POST',
+    headers: authHeaders(),
   });
   if (!response.ok) {
-    throw new Error('خطا در افزودن فایل نمونه');
+    await handleAuthError(response);
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : 'خطا در افزودن فایل نمونه');
   }
   const data = await response.json();
   return data.properties;
@@ -147,12 +184,13 @@ export async function fetchApplicants(): Promise<ApplicantRequest[]> {
 export async function createApplicant(data: Partial<ApplicantRequest>): Promise<ApplicantRequest> {
   const response = await fetch(`${BASE_URL}/applicants`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در ثبت خواهان جدید');
+    await handleAuthError(response);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در ثبت خواهان جدید'));
   }
   return response.json();
 }
@@ -160,12 +198,13 @@ export async function createApplicant(data: Partial<ApplicantRequest>): Promise<
 export async function updateApplicant(id: string, data: Partial<ApplicantRequest>): Promise<ApplicantRequest> {
   const response = await fetch(`${BASE_URL}/applicants/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'خطا در ویرایش مشخصات خواهان');
+    await handleAuthError(response);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در ویرایش مشخصات خواهان'));
   }
   return response.json();
 }
@@ -173,10 +212,12 @@ export async function updateApplicant(id: string, data: Partial<ApplicantRequest
 export async function deleteApplicant(id: string): Promise<any> {
   const response = await fetch(`${BASE_URL}/applicants/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   });
   if (!response.ok) {
+    await handleAuthError(response);
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'خطا در حذف خواهان');
+    throw new Error(response.status === 401 ? 'رمز عبور اشتباه است.' : (error.error || 'خطا در حذف خواهان'));
   }
   return response.json().catch(() => ({ success: true }));
 }
