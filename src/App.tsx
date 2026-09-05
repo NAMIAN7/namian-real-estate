@@ -23,6 +23,7 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { ApplicantCard } from './components/ApplicantCard';
 import { ApplicantFormModal } from './components/ApplicantFormModal';
 import { ApplicantDeleteConfirmModal } from './components/ApplicantDeleteConfirmModal';
+import { BulkImportModal } from './components/BulkImportModal';
 import {
   Building2,
   Plus,
@@ -33,7 +34,8 @@ import {
   SearchX,
   Sparkles,
   Search,
-  UserSearch
+  UserSearch,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function App() {
@@ -60,6 +62,7 @@ export default function App() {
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyFile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   // ── خواهان‌ها (متقاضیان ملک) ──
   const [isApplicantsView, setIsApplicantsView] = useState(false);
@@ -372,12 +375,24 @@ export default function App() {
           </>
         ) : (
         <>
-        {/* Filter Bar (Search by code, title, region + Category filter) */}
-        <FilterBar
-          filter={filter}
-          onUpdateFilter={(changes) => setFilter(prev => ({ ...prev, ...changes }))}
-          onClearFilters={() => setFilter({ search: '', status: activeStatusTab, category: 'all' })}
-        />
+        {/* Filter Bar (Search by code, title, region + Category filter) + Bulk Import */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex-1">
+            <FilterBar
+              filter={filter}
+              onUpdateFilter={(changes) => setFilter(prev => ({ ...prev, ...changes }))}
+              onClearFilters={() => setFilter({ search: '', status: activeStatusTab, category: 'all' })}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setBulkImportOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#18181f] border border-stone-700 hover:border-amber-500/60 hover:text-amber-300 text-stone-300 text-xs font-bold transition-all whitespace-nowrap"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>ورود گروهی از اکسل</span>
+          </button>
+        </div>
 
         {/* Loading Spinner */}
         {isLoading ? (
@@ -480,6 +495,15 @@ export default function App() {
             setEditingProperty(null);
           }}
           onSave={handleSaveProperty}
+        />
+      )}
+
+      {/* Bulk Import Modal (Excel paste) */}
+      {bulkImportOpen && (
+        <BulkImportModal
+          existingProperties={properties}
+          onClose={() => setBulkImportOpen(false)}
+          onDone={() => loadProperties(true)}
         />
       )}
 
