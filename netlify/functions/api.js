@@ -3,7 +3,7 @@ import { getStore } from '@netlify/blobs';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Admin-Password',
 };
 
 function json(data, status = 200) {
@@ -11,6 +11,17 @@ function json(data, status = 200) {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
+}
+
+// ── بررسی رمز عبور برای عملیات ویرایشی (افزودن/ویرایش/حذف) ──
+function isAuthorized(req) {
+  const provided = req.headers.get('x-admin-password') || '';
+  const expected = process.env.ADMIN_PASSWORD || '';
+  if (!expected) {
+    // اگر رمز روی سرور تنظیم نشده باشد، برای جلوگیری از دسترسی باز، درخواست رد می‌شود
+    return false;
+  }
+  return provided === expected;
 }
 
 const SAMPLE_PROPERTY = {
@@ -93,6 +104,15 @@ export default async (req, context) => {
   }
   const segments = routePath.split('/').filter(Boolean);
   const method = req.method;
+
+  // ── محافظت رمز عبور: هر درخواستی که چیزی را تغییر می‌دهد باید رمز صحیح داشته باشد ──
+  const isWriteMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+  const isHealthCheck = segments[0] === 'health';
+  if (isWriteMethod && !isHealthCheck) {
+    if (!isAuthorized(req)) {
+      return json({ error: 'رمز عبور اشتباه است یا وارد نشده.' }, 401);
+    }
+  }
 
   try {
     // GET /api/health
