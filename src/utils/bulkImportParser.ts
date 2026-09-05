@@ -1,27 +1,26 @@
 import { PropertyFile, PropertyCategory } from '../types';
 
 // نگاشت اسم هدرهای اکسل (نامیان) به فیلدهای سایت
-// کلید: نسخه‌ی نرمال‌شده‌ی هدر (بدون فاصله و نیم‌فاصله)، مقدار: نقش ستون
 type ColumnRole =
   | 'code'
   | 'propertyType'
   | 'area'
-  | 'dealType'        // نوع معامله (فروش/رهن‌اجاره) — می‌رود توی یادداشت خصوصی
+  | 'dealType'
   | 'region'
   | 'price'
   | 'status'
-  | 'widthOrDepth'    // بر و عمق (فقط زمین) — می‌رود توی width
+  | 'widthOrDepth'
   | 'description'
-  | 'registryNumber'  // شماره داخل دفتر فروش — یادداشت خصوصی
-  | 'ownerName'        // نام مالک — یادداشت خصوصی
-  | 'ownerPhone'       // شماره مالک — یادداشت خصوصی
-  | 'registeredDate'   // تاریخ ثبت — یادداشت خصوصی
-  | 'ignore';          // تصویر و ستون‌های ناشناس
+  | 'registryNumber'
+  | 'ownerName'
+  | 'ownerPhone'
+  | 'registeredDate'
+  | 'ignore';
 
 function normalizeHeader(h: string): string {
   return (h || '')
-    .replace(/\u200c/g, '') // حذف نیم‌فاصله
-    .replace(/\s+/g, '')    // حذف همه فاصله‌ها
+    .replace(/\u200c/g, '')
+    .replace(/\s+/g, '')
     .trim();
 }
 
@@ -35,10 +34,8 @@ const HEADER_ROLE_MAP: Record<string, ColumnRole> = {
   'وضعیت': 'status',
   'برو عمق': 'widthOrDepth',
   'بروعمق': 'widthOrDepth',
-  'بروعمق:': 'widthOrDepth',
   'توضیحات': 'description',
   'شمارهداخلدفترفروش': 'registryNumber',
-  'شمارهداخلدفتر فروش': 'registryNumber',
   'نامالک': 'ownerName',
   'ناممالک': 'ownerName',
   'شمارهمالک': 'ownerPhone',
@@ -75,6 +72,71 @@ function parseAreaNumber(raw: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+// ── پارسر متن جدولی کپی‌شده از اکسل ──
+// اکسل وقتی سلولی چند خط داخلی (Alt+Enter) یا خود تب داشته باشد، آن سلول را
+// داخل گیومه قرار می‌دهد؛ این تابع این حالت را هم درست تشخیص می‌دهد.
+function parseDelimitedText(text: string, delimiter = '\t'): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+  const len = text.length;
+
+  while (i < len) {
+    const char = text[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      field += char;
+      i++;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (char === delimiter) {
+      row.push(field);
+      field = '';
+      i++;
+      continue;
+    }
+    if (char === '\r') {
+      i++;
+      continue;
+    }
+    if (char === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      i++;
+      continue;
+    }
+    field += char;
+    i++;
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows.filter((r) => r.some((cell) => cell && cell.trim().length > 0));
+}
+
 export interface ParsedRow {
   data: Partial<PropertyFile>;
   rawCode: string;
@@ -86,29 +148,27 @@ export interface ParseResult {
   unrecognizedHeaders: string[];
 }
 
-// ورودی: متن paste شده از اکسل (تب-جدا)، خروجی: ردیف‌های آماده برای ارسال به سرور
 export function parsePastedExcelText(
   text: string,
   category: PropertyCategory
 ): ParseResult {
-  const lines = text
-    .split(/\r\n|\r|\n/)
-    .map((l) => l.replace(/\s+$/, ''))
-    .filter((l) => l.trim().length > 0);
-
+  const table = parseDelimitedText(text);
   const errors: string[] = [];
-  if (lines.length < 2) {
+
+  if (table.length < 2) {
     return { rows: [], errors: ['حداقل یک سطر هدر و یک سطر داده لازم است.'], unrecognizedHeaders: [] };
   }
 
-  const headerCells = lines[0].split('\t');
+  const headerCells = table[0];
   const roles = headerCells.map(roleFor);
-  const unrecognizedHeaders = headerCells.filter((h, i) => roles[i] === 'ignore' && normalizeHeader(h) !== 'تصویر');
+  const unrecognizedHeaders = headerCells.filter(
+    (h, i) => roles[i] === 'ignore' && normalizeHeader(h) !== 'تصویر'
+  );
 
   const rows: ParsedRow[] = [];
 
-  for (let li = 1; li < lines.length; li++) {
-    const cells = lines[li].split('\t');
+  for (let ri = 1; ri < table.length; ri++) {
+    const cells = table[ri];
     if (cells.every((c) => !c || !c.trim())) continue;
 
     const notesParts: string[] = [];
@@ -175,7 +235,7 @@ export function parsePastedExcelText(
     }
 
     if (!code) {
-      errors.push(`سطر ${li + 1}: ستون «کد» خالی است، این ردیف رد شد.`);
+      errors.push(`سطر ${ri + 1}: ستون «کد» خالی است، این ردیف رد شد.`);
       continue;
     }
 
