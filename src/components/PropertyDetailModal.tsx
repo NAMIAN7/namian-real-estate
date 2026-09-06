@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PropertyFile, PropertyStatus } from '../types';
 import { LightboxModal } from './LightboxModal';
+import { getDetailFields } from '../utils/categoryFields';
 import {
   X,
   MapPin,
@@ -56,6 +57,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const currentStatus = statusMap[property.status] || statusMap.active;
   const hasPhotos = property.photos && property.photos.length > 0;
   const hasVideos = property.videos && property.videos.length > 0;
+  const detailFields = getDetailFields(property);
 
   return (
     <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
@@ -102,9 +104,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
         {/* Modal Body Scrollable */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           
-          {/* 1. Media Section ("بخش رسانه: گالری تصاویر و پخش ویدیو") */}
+          {/* 1. Media Section */}
           <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-4 sm:p-5">
-            {/* Media Tabs Header */}
             <div className="flex items-center justify-between border-b border-stone-800 pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <button
@@ -152,11 +153,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               )}
             </div>
 
-            {/* Media Content Area */}
             {activeMediaTab === 'photos' ? (
               hasPhotos ? (
                 <div>
-                  {/* Large Photo Display */}
                   <div
                     onClick={() => setLightboxOpen(true)}
                     className="relative h-64 sm:h-96 rounded-2xl overflow-hidden bg-[#121217] border border-stone-800 cursor-pointer group"
@@ -174,7 +173,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Thumbnail Strip */}
                   {property.photos.length > 1 && (
                     <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
                       {property.photos.map((photo, idx) => (
@@ -203,7 +201,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             ) : (
               hasVideos ? (
                 <div className="space-y-4">
-                  {/* HTML5 Video Player inside app */}
                   <div className="relative rounded-2xl overflow-hidden bg-black border border-stone-800 aspect-video max-h-[480px] w-full flex items-center justify-center">
                     <video
                       key={property.videos[selectedVideoIndex]}
@@ -215,7 +212,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     </video>
                   </div>
 
-                  {/* Video Playlist Selector if more than 1 */}
                   {property.videos.length > 1 && (
                     <div className="flex items-center gap-2 overflow-x-auto">
                       {property.videos.map((_, idx) => (
@@ -283,10 +279,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Two-Column Details Grid (Public Specs + Private Colleague Notes) */}
+          {/* 3. Two-Column Details Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Right Column: Key Property Specifications (2 columns width on lg) */}
+            {/* Right Column: Key Property Specifications (category-aware) */}
             <div className="lg:col-span-2 space-y-4">
               <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-5">
                 <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-4">
@@ -295,52 +291,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </h3>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">نوع ملک</span>
-                    <strong className="text-sm text-stone-200">{property.propertyType || 'نامشخص'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">متراژ زمین/بنا</span>
-                    <strong className="text-sm text-stone-200">{property.area} متر مربع</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">تعداد خواب</span>
-                    <strong className="text-sm text-stone-200">
-                      {property.bedrooms > 0 ? `${property.bedrooms} خوابه` : 'بدون خواب / تجاری'}
-                    </strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">عرض ملک / بر</span>
-                    <strong className="text-sm text-stone-200">{property.width || 'نامشخص'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">طبقه / موقعیت</span>
-                    <strong className="text-sm text-stone-200">{property.floor || 'همکف'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">نوع سند</span>
-                    <strong className="text-sm text-stone-200">{property.documentType || 'تک‌برگ'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">پارکینگ</span>
-                    <strong className="text-sm text-stone-200">{property.parking || 'ندارد'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">انباری</span>
-                    <strong className="text-sm text-stone-200">{property.storage || 'ندارد'}</strong>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
-                    <span className="text-xs text-stone-400 block mb-1">آسانسور</span>
-                    <strong className="text-sm text-stone-200">{property.elevator || 'ندارد'}</strong>
-                  </div>
+                  {detailFields.map((field, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-[#121217] border border-stone-800/80">
+                      <span className="text-xs text-stone-400 block mb-1">{field.label}</span>
+                      <strong className="text-sm text-stone-200">{field.value}</strong>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Public Description */}
@@ -353,9 +309,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Left Column: Private Note for Colleagues ("یادداشت خصوصی برای همکاران") + Status Control */}
+            {/* Left Column: Private Note for Colleagues + Status Control */}
             <div className="space-y-4">
-              {/* Confidential Agent Note Card */}
               <div className="bg-gradient-to-b from-amber-500/10 to-[#18181f] border-2 border-amber-500/40 rounded-2xl p-5 shadow-lg shadow-amber-500/5">
                 <div className="flex items-center gap-2 pb-3 border-b border-amber-500/20 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-[#0f0f13]">
@@ -383,7 +338,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Status Change Control Panel */}
               <div className="bg-[#18181f] border border-stone-800 rounded-2xl p-5">
                 <h3 className="text-xs font-bold text-stone-300 mb-3">تغییر وضعیت فایل ملک:</h3>
                 
@@ -437,7 +391,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   </button>
                 </div>
 
-                {/* Delete button inside modal */}
                 <div className="mt-4 pt-4 border-t border-stone-800">
                   <button
                     type="button"
@@ -473,7 +426,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
       </div>
 
-      {/* Lightbox Modal */}
       {lightboxOpen && property.photos && (
         <LightboxModal
           photos={property.photos}
