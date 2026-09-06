@@ -42,37 +42,37 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
   const isEditing = !!initialData;
 
   const [formData, setFormData] = useState<Partial<PropertyFile>>({
-    code: initialData?.code || `NMN-${Math.floor(1000 + Math.random() * 9000)}`,
-    title: initialData?.title || '',
-    category: initialData?.category || 'خانه',
-    propertyType: initialData?.propertyType || 'ویلایی / آپارتمان',
-    region: initialData?.region || '',
-    address: initialData?.address || '',
-    area: initialData?.area || 100,
-    price: initialData?.price || '',
-    width: initialData?.width || '',
-    bedrooms: initialData?.bedrooms || 2,
-    floor: initialData?.floor || 'همکف',
-    parking: initialData?.parking || 'دارد',
-    storage: initialData?.storage || 'دارد',
-    elevator: initialData?.elevator || 'دارد',
-    documentType: initialData?.documentType || 'سند تک‌برگ ۶ دانگ',
-    description: initialData?.description || '',
-    privateNote: initialData?.privateNote || '',
-    status: initialData?.status || 'active',
-    photos: initialData?.photos || [],
-    videos: initialData?.videos || [],
+    code: initialData?.code ?? `NMN-${Math.floor(1000 + Math.random() * 9000)}`,
+    title: initialData?.title ?? '',
+    category: initialData?.category ?? 'خانه',
+    propertyType: initialData?.propertyType ?? 'ویلایی / آپارتمان',
+    region: initialData?.region ?? '',
+    address: initialData?.address ?? '',
+    area: initialData?.area ?? (isEditing ? 0 : 100),
+    price: initialData?.price ?? '',
+    width: initialData?.width ?? '',
+    bedrooms: initialData?.bedrooms ?? (isEditing ? 0 : 2),
+    floor: initialData?.floor ?? (isEditing ? '' : 'همکف'),
+    parking: initialData?.parking ?? (isEditing ? '' : 'دارد'),
+    storage: initialData?.storage ?? (isEditing ? '' : 'دارد'),
+    elevator: initialData?.elevator ?? (isEditing ? '' : 'دارد'),
+    documentType: initialData?.documentType ?? (isEditing ? '' : 'سند تک‌برگ ۶ دانگ'),
+    description: initialData?.description ?? '',
+    privateNote: initialData?.privateNote ?? '',
+    status: initialData?.status ?? 'active',
+    photos: initialData?.photos ?? [],
+    videos: initialData?.videos ?? [],
     // فیلدهای اختصاصی دسته‌بندی‌ها
-    utilities: initialData?.utilities || '',
-    parcelNumber: initialData?.parcelNumber || '',
-    mapName: initialData?.mapName || '',
-    landUse: initialData?.landUse || 'مسکونی',
-    waterWellStatus: initialData?.waterWellStatus || '',
-    hasStructure: initialData?.hasStructure || 'خیر',
-    ceilingHeight: initialData?.ceilingHeight || '',
-    depositAmount: initialData?.depositAmount || '',
-    monthlyRent: initialData?.monthlyRent || '',
-    convertible: initialData?.convertible || 'خیر',
+    utilities: initialData?.utilities ?? '',
+    parcelNumber: initialData?.parcelNumber ?? '',
+    mapName: initialData?.mapName ?? '',
+    landUse: initialData?.landUse ?? (isEditing ? '' : 'مسکونی'),
+    waterWellStatus: initialData?.waterWellStatus ?? '',
+    hasStructure: initialData?.hasStructure ?? 'خیر',
+    ceilingHeight: initialData?.ceilingHeight ?? '',
+    depositAmount: initialData?.depositAmount ?? '',
+    monthlyRent: initialData?.monthlyRent ?? '',
+    convertible: initialData?.convertible ?? 'خیر',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -366,7 +366,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                   type="number"
                   required
                   min={0}
-                  value={formData.area || 0}
+                  value={formData.area ?? 0}
                   onChange={(e) => handleChange('area', Number(e.target.value))}
                   className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                 />
@@ -398,7 +398,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                     <input
                       type="number"
                       min={0}
-                      value={formData.bedrooms || 0}
+                      value={formData.bedrooms ?? 0}
                       onChange={(e) => handleChange('bedrooms', Number(e.target.value))}
                       className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                     />
@@ -491,10 +491,11 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                       کاربری زمین
                     </label>
                     <select
-                      value={formData.landUse || 'مسکونی'}
+                      value={formData.landUse || ''}
                       onChange={(e) => handleChange('landUse', e.target.value)}
                       className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                     >
+                      <option value="">انتخاب نشده</option>
                       <option value="مسکونی">مسکونی</option>
                       <option value="تجاری">تجاری</option>
                       <option value="کشاورزی">کشاورزی</option>
@@ -624,7 +625,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                       type="text"
                       value={formData.parking || ''}
                       onChange={(e) => handleChange('parking', e.target.value)}
-                      placeholder="مثال: دارد (۳ سندی)"
+                      placeholder="مثال: دارد (۳ سندی) — یا خالی بگذارید برای «ندارد»"
                       className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
@@ -639,7 +640,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                       type="text"
                       value={formData.storage || ''}
                       onChange={(e) => handleChange('storage', e.target.value)}
-                      placeholder="مثال: دارد (۲۵ متر)"
+                      placeholder="مثال: دارد (۲۵ متر) — یا خالی بگذارید برای «ندارد»"
                       className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
@@ -654,7 +655,7 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
                       type="text"
                       value={formData.elevator || ''}
                       onChange={(e) => handleChange('elevator', e.target.value)}
-                      placeholder="مثال: دارد (هیدرولیک شیشه‌ای)"
+                      placeholder="مثال: دارد (هیدرولیک شیشه‌ای) — یا خالی بگذارید برای «ندارد»"
                       className="w-full bg-[#121217] text-stone-100 rounded-xl px-3.5 py-2.5 text-sm border border-stone-800 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
