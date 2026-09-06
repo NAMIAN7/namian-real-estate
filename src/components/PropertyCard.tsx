@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PropertyFile, PropertyStatus } from '../types';
+import { getCardFields } from '../utils/categoryFields';
 import {
   MapPin,
   Maximize2,
@@ -22,6 +23,13 @@ interface PropertyCardProps {
   onDelete: (property: PropertyFile) => void;
   onChangeStatus: (id: string, newStatus: PropertyStatus) => void;
 }
+
+const ICONS: Record<string, React.ElementType> = {
+  area: Maximize2,
+  bed: BedDouble,
+  width: Ruler,
+  generic: Building,
+};
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({
   property,
@@ -53,6 +61,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   };
 
   const statusInfo = statusLabelMap[property.status] || statusLabelMap.active;
+  const cardFields = getCardFields(property);
 
   return (
     <div
@@ -71,17 +80,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           }}
         />
 
-        {/* Gradient dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#18181f] via-transparent to-black/50" />
 
-        {/* Top Right: Category Badge */}
         <div className="absolute top-3.5 right-3.5 z-10">
           <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-[#0f0f13]/90 text-amber-400 border border-amber-500/30 shadow-md">
             {property.category}
           </span>
         </div>
 
-        {/* Top Left: Status Badge */}
         <div className="absolute top-3.5 left-3.5 z-10">
           <span
             className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border shadow-md ${statusInfo.badge}`}
@@ -90,7 +96,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </span>
         </div>
 
-        {/* Bottom Bar on image: Code and Media Counters */}
         <div className="absolute bottom-3 right-3.5 left-3.5 z-10 flex items-center justify-between">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/80 text-amber-400 text-xs font-mono font-bold border border-amber-500/30">
             <span>کد:</span>
@@ -117,7 +122,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* Body Section */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-4">
         <div>
-          {/* Title */}
           <h3
             onClick={() => onViewDetail(property)}
             className="text-base sm:text-lg font-bold text-stone-100 hover:text-amber-400 transition-colors line-clamp-1 cursor-pointer"
@@ -125,7 +129,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             {property.title}
           </h3>
 
-          {/* Region & Address */}
           <div className="flex items-start gap-1.5 mt-2 text-stone-400 text-xs">
             <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
             <span className="line-clamp-1">
@@ -133,35 +136,25 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             </span>
           </div>
 
-          {/* Key Specs Grid */}
+          {/* Key Specs Grid (category-aware) */}
           <div className="grid grid-cols-3 gap-2 mt-4 p-2.5 rounded-xl bg-[#121217] border border-stone-800/80 text-xs">
-            <div className="flex flex-col items-center justify-center text-center p-1">
-              <span className="text-stone-400 flex items-center gap-1 mb-0.5">
-                <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
-                متراژ
-              </span>
-              <strong className="text-stone-200 font-bold">{property.area} متر</strong>
-            </div>
-
-            <div className="flex flex-col items-center justify-center text-center p-1 border-x border-stone-800">
-              <span className="text-stone-400 flex items-center gap-1 mb-0.5">
-                <BedDouble className="w-3.5 h-3.5 text-amber-400" />
-                خواب
-              </span>
-              <strong className="text-stone-200 font-bold">
-                {property.bedrooms > 0 ? `${property.bedrooms} خوابه` : 'بدون خواب'}
-              </strong>
-            </div>
-
-            <div className="flex flex-col items-center justify-center text-center p-1">
-              <span className="text-stone-400 flex items-center gap-1 mb-0.5">
-                <Ruler className="w-3.5 h-3.5 text-amber-400" />
-                عرض ملک
-              </span>
-              <strong className="text-stone-200 font-bold truncate max-w-full">
-                {property.width || 'نامشخص'}
-              </strong>
-            </div>
+            {cardFields.slice(0, 3).map((field, idx) => {
+              const Icon = ICONS[field.icon || 'generic'];
+              return (
+                <div
+                  key={idx}
+                  className={`flex flex-col items-center justify-center text-center p-1 ${idx === 1 ? 'border-x border-stone-800' : ''}`}
+                >
+                  <span className="text-stone-400 flex items-center gap-1 mb-0.5">
+                    <Icon className="w-3.5 h-3.5 text-amber-400" />
+                    {field.label}
+                  </span>
+                  <strong className="text-stone-200 font-bold truncate max-w-full">
+                    {field.value}
+                  </strong>
+                </div>
+              );
+            })}
           </div>
 
           {/* Price & Private Note Tag */}
@@ -187,7 +180,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
         {/* Action Footer */}
         <div className="pt-3 border-t border-stone-800 flex items-center justify-between gap-2">
-          {/* Main View Details CTA */}
           <button
             type="button"
             onClick={() => onViewDetail(property)}
@@ -197,7 +189,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             <span>مشاهده فایل و گالری</span>
           </button>
 
-          {/* Status Dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -248,7 +239,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             )}
           </div>
 
-          {/* Edit Button */}
           <button
             type="button"
             onClick={(e) => {
@@ -261,7 +251,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             <Edit3 className="w-4 h-4" />
           </button>
 
-          {/* Delete Button */}
           <button
             type="button"
             onClick={(e) => {
