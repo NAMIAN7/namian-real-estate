@@ -1,8 +1,8 @@
 import { PropertyFile, PropertyStatus, ApplicantRequest } from '../types';
+import { compressImageIfNeeded } from '../utils/imageCompression';
 
 const BASE_URL = '/api';
 
-// ── مدیریت رمز عبور مدیریت (برای عملیات افزودن/ویرایش/حذف) ──
 function getAdminPassword(): string {
   let pass = sessionStorage.getItem('admin_password');
   if (!pass) {
@@ -27,9 +27,12 @@ function authHeaders(): Record<string, string> {
 
 async function handleAuthError(response: Response) {
   if (response.status === 401) {
-    // رمز اشتباه بوده، آن را پاک می‌کنیم تا دفعه بعد دوباره بپرسد
     clearAdminPassword();
   }
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function fetchProperties(): Promise<PropertyFile[]> {
@@ -103,8 +106,35 @@ export async function deletePropertyFile(id: string): Promise<any> {
   return response.json().catch(() => ({ success: true }));
 }
 
-export async function uploadMediaFiles(files: File[]): Promise<string[]> {
-  // Get a fresh, secure upload signature from our tiny server function
+// یک تلاش آپلود؛ در صورت خطای شبکه (نه خطای واقعی از سرور)، chance می‌دهیم دوباره تلاش کنیم
+async function uploadSingleFile(file: File, auth: any): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('fileName', file.name);
+  formData.append('publicKey', auth.publicKey);
+  formData.append('signature', auth.signature);
+  formData.append('expire', String(auth.expire));
+  formData.append('token', auth.token);
+  formData.append('useUniqueFileName', 'true');
+
+  const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'خطا در آپلود رسانه');
+  }
+  const data = await response.json();
+  return data.url;
+}
+
+const MAX_RETRIES = 3;
+
+export async function uploadMediaFiles(
+  files: File[],
+  onProgress?: (done: number, total: number) => void
+): Promise<string[]> {
   const authRes = await fetch(`${BASE_URL}/imagekit-auth`);
   if (!authRes.ok) {
     throw new Error('خطا در دریافت مجوز آپلود');
@@ -112,26 +142,39 @@ export async function uploadMediaFiles(files: File[]): Promise<string[]> {
   const auth = await authRes.json();
 
   const urls: string[] = [];
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('fileName', file.name);
-    formData.append('publicKey', auth.publicKey);
-    formData.append('signature', auth.signature);
-    formData.append('expire', String(auth.expire));
-    formData.append('token', auth.token);
-    formData.append('useUniqueFileName', 'true');
+  for (let i = 0; i < files.length; i++) {
+    const isVideo = files[i].type.startsWith('video/');
+    const file = await compressImageIfNeeded(files[i]);
 
-    const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'خطا در آپلود رسانه');
+    let lastError: any = null;
+    let uploaded = false;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const url = await uploadSingleFile(file, auth);
+        urls.push(url);
+        uploaded = true;
+        break;
+      } catch (err: any) {
+        lastError = err;
+        // فقط برای خطاهای شبکه‌ای (نه خطای واقعی سرور) دوباره تلاش می‌کنیم
+        const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+        if (attempt < MAX_RETRIES && isNetworkError) {
+          await delay(1500 * attempt);
+          continue;
+        }
+        break;
+      }
     }
-    const data = await response.json();
-    urls.push(data.url);
+
+    if (!uploaded) {
+      const hint = isVideo
+        ? ' (احتمالاً حجم ویدیو زیاد است یا اتصال اینترنت قطع شده — سعی کنید ویدیو را فشرده‌تر کنید و دوباره امتحان کنید)'
+        : '';
+      throw new Error((lastError?.message || 'خطا در آپلود رسانه') + hint);
+    }
+
+    if (onProgress) onProgress(i + 1, files.length);
   }
   return urls;
 }
@@ -172,7 +215,6 @@ export async function addSamplePropertyFile(): Promise<PropertyFile[]> {
   return data.properties;
 }
 
-// ── خواهان‌ها (متقاضیان ملک) ──
 export async function fetchApplicants(): Promise<ApplicantRequest[]> {
   const response = await fetch(`${BASE_URL}/applicants`);
   if (!response.ok) {
