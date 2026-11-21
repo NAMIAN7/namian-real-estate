@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PropertyFile, PropertyFilter, PropertyStatus, PropertyCategory, ApplicantRequest } from './types';
 import { smartSearchMatch } from './utils/search';
+import { parsePriceToBillions, parseFilterNumber } from './utils/price';
 import {
   fetchProperties,
   createPropertyFile,
@@ -16,6 +17,7 @@ import {
 import { Header } from './components/Header';
 import { StatusTabs } from './components/StatusTabs';
 import { FilterBar } from './components/FilterBar';
+import { PriceFilter, PriceSort } from './components/PriceFilter';
 import { PropertyCard } from './components/PropertyCard';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { PropertyFormModal } from './components/PropertyFormModal';
@@ -54,6 +56,17 @@ export default function App() {
     status: 'active',
     category: 'all',
   });
+
+  // Price filter + sort (values in billions of tomans)
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [sortOrder, setSortOrder] = useState<PriceSort>('new');
+
+  const resetPriceFilters = () => {
+    setPriceMin('');
+    setPriceMax('');
+    setSortOrder('new');
+  };
 
   // Modal States
   const [selectedPropertyDetail, setSelectedPropertyDetail] = useState<PropertyFile | null>(null);
@@ -172,9 +185,9 @@ export default function App() {
     }
   };
 
-  // Filtered Properties
-  const filteredProperties = useMemo(() => {
-    return properties.filter(p => {
+  // Filtered Properties (status + category + text search + price range + price sort)
+  const { items: filteredProperties, hiddenNoPrice } = useMemo(() => {
+    const base = properties.filter(p => {
       // 1. Status Filter
       if (filter.status !== 'all' && p.status !== filter.status) {
         return false;
@@ -191,7 +204,43 @@ export default function App() {
       }
       return true;
     });
-  }, [properties, filter]);
+
+    const minN = parseFilterNumber(priceMin);
+    const maxN = parseFilterNumber(priceMax);
+    const priceActive = minN !== null || maxN !== null;
+    const sortActive = sortOrder !== 'new';
+
+    if (!priceActive && !sortActive) {
+      return { items: base, hiddenNoPrice: 0 };
+    }
+
+    let rows = base.map(p => ({ p, price: parsePriceToBillions(p.price) }));
+    let hidden = 0;
+
+    if (priceActive) {
+      hidden = rows.filter(r => r.price === null).length;
+      rows = rows.filter(
+        r =>
+          r.price !== null &&
+          (minN === null || r.price >= minN) &&
+          (maxN === null || r.price <= maxN)
+      );
+    }
+
+    if (sortActive) {
+      const priced = rows
+        .filter(r => r.price !== null)
+        .sort((a, b) =>
+          sortOrder === 'asc'
+            ? (a.price as number) - (b.price as number)
+            : (b.price as number) - (a.price as number)
+        );
+      const unpriced = rows.filter(r => r.price === null);
+      rows = [...priced, ...unpriced];
+    }
+
+    return { items: rows.map(r => r.p), hiddenNoPrice: hidden };
+  }, [properties, filter, priceMin, priceMax, sortOrder]);
 
   // Handlers
   const handleOpenNewForm = () => {
@@ -381,7 +430,10 @@ export default function App() {
             <FilterBar
               filter={filter}
               onUpdateFilter={(changes) => setFilter(prev => ({ ...prev, ...changes }))}
-              onClearFilters={() => setFilter({ search: '', status: activeStatusTab, category: 'all' })}
+              onClearFilters={() => {
+                setFilter({ search: '', status: activeStatusTab, category: 'all' });
+                resetPriceFilters();
+              }}
             />
           </div>
           <button
@@ -393,6 +445,23 @@ export default function App() {
             <span>ورود گروهی از اکسل</span>
           </button>
         </div>
+
+        {/* Price range filter + sort by price */}
+        <PriceFilter
+          minValue={priceMin}
+          maxValue={priceMax}
+          sort={sortOrder}
+          resultCount={filteredProperties.length}
+          hiddenNoPrice={hiddenNoPrice}
+          onChangeMin={setPriceMin}
+          onChangeMax={setPriceMax}
+          onChangeSort={setSortOrder}
+          onQuick={(min, max) => {
+            setPriceMin(min);
+            setPriceMax(max);
+          }}
+          onClear={resetPriceFilters}
+        />
 
         {/* Loading Spinner */}
         {isLoading ? (
@@ -429,7 +498,10 @@ export default function App() {
             <div className="flex items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => setFilter({ search: '', status: 'all', category: 'all' })}
+                onClick={() => {
+                  setFilter({ search: '', status: 'all', category: 'all' });
+                  resetPriceFilters();
+                }}
                 className="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold transition-all"
               >
                 نمایش همه فایل‌ها
