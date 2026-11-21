@@ -89,6 +89,50 @@ export function getPropertySearchText(property: PropertyFile): string {
   return `${combined} ${noCommas}`;
 }
 
+function isDigitChar(ch: string | undefined): boolean {
+  return ch !== undefined && ch >= '0' && ch <= '9';
+}
+
+function isSeparatorChar(ch: string | undefined): boolean {
+  return ch === '.' || ch === ',' || ch === '،';
+}
+
+/**
+ * Checks whether `token` appears inside `text`.
+ * If the token starts or ends with a digit, the number must be a WHOLE number:
+ * searching "55" matches "55" or "h55", but NOT "155", "550" or "4.550".
+ * Tokens without digits (normal words) keep using a plain "includes" check.
+ */
+function containsWhole(text: string, token: string): boolean {
+  if (!token) return true;
+  if (!/\d/.test(token)) return text.includes(token);
+
+  const startsWithDigit = isDigitChar(token[0]);
+  const endsWithDigit = isDigitChar(token[token.length - 1]);
+
+  let idx = text.indexOf(token);
+  while (idx !== -1) {
+    const before = text[idx - 1];
+    const beforeBefore = text[idx - 2];
+    const after = text[idx + token.length];
+    const afterAfter = text[idx + token.length + 1];
+
+    const startOk =
+      !startsWithDigit ||
+      !(isDigitChar(before) || (isSeparatorChar(before) && isDigitChar(beforeBefore)));
+
+    const endOk =
+      !endsWithDigit ||
+      !(isDigitChar(after) || (isSeparatorChar(after) && isDigitChar(afterAfter)));
+
+    if (startOk && endOk) return true;
+
+    idx = text.indexOf(token, idx + 1);
+  }
+
+  return false;
+}
+
 /**
  * Checks if a property matches the user's search query intelligently.
  */
@@ -105,24 +149,21 @@ export function smartSearchMatch(property: PropertyFile, rawQuery: string): bool
 
   const propertyText = getPropertySearchText(property);
 
-  // 1. First check if the entire normalized phrase matches directly
-  if (propertyText.includes(query)) {
+  // 1. First check if the entire normalized phrase matches directly (numbers must match as whole numbers)
+  if (containsWhole(propertyText, query)) {
     return true;
   }
 
   // 2. Tokenize query into meaningful keywords
-  // We treat combined expressions like "100 متر" or "2 خواب" as tokens if possible,
-  // or check each individual token across the property text.
   const tokens = query.split(' ').filter(Boolean);
 
   if (tokens.length === 0) return true;
 
-  // For multi-word queries (e.g., "رهن 80", "باغ 500 متر", "دو خوابه زعفرانیه"):
   // Every token (word) in the search query must be found somewhere in the property's combined searchable text
   // OR match specific numeric semantics.
   return tokens.every((token, index) => {
-    // Check if token is directly in propertyText
-    if (propertyText.includes(token)) {
+    // Check if token is directly in propertyText (whole-number match for numbers)
+    if (containsWhole(propertyText, token)) {
       return true;
     }
 
@@ -144,7 +185,7 @@ export function smartSearchMatch(property: PropertyFile, rawQuery: string): bool
 
     // Special check: strip commas from numeric token (e.g., "80,000" -> "80000")
     const cleanToken = token.replace(/[,،]/g, '');
-    if (cleanToken !== token && propertyText.includes(cleanToken)) {
+    if (cleanToken !== token && containsWhole(propertyText, cleanToken)) {
       return true;
     }
 
