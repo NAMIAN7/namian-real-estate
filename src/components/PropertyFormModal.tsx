@@ -82,6 +82,10 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
 
+  // ترتیب عکس‌ها با درگ و دراپ
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
   const category = formData.category || 'خانه';
 
   // ── منطق نمایش/مخفی‌سازی فیلدها بر اساس دسته‌بندی ──
@@ -152,6 +156,18 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
       ...prev,
       videos: (prev.videos || []).filter((_, i) => i !== index)
     }));
+  };
+
+  // جابه‌جایی عکس از جای قبلی به جای جدید (عکس اول همیشه کاور است)
+  const handleReorderPhotos = (from: number, to: number) => {
+    if (from === to) return;
+    setFormData(prev => {
+      const list = [...(prev.photos || [])];
+      if (from < 0 || from >= list.length || to < 0 || to >= list.length) return prev;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      return { ...prev, photos: list };
+    });
   };
 
   const handleAiEnhance = async () => {
@@ -844,16 +860,62 @@ export const PropertyFormModal: React.FC<PropertyFormModalProps> = ({
               </div>
             )}
 
-            {/* Uploaded Photos Preview List */}
+            {/* Uploaded Photos Preview List (با درگ و دراپ برای تغییر ترتیب) */}
             {formData.photos && formData.photos.length > 0 && (
               <div>
-                <span className="text-xs font-bold text-stone-300 block mb-2">
+                <span className="text-xs font-bold text-stone-300 block mb-1">
                   عکس‌های متصل به این ملک ({formData.photos.length}):
+                </span>
+                <span className="text-[11px] text-stone-500 block mb-2">
+                  برای تغییر ترتیب، عکس را بگیرید و روی جای دیگر رها کنید. عکس شماره ۱ کاور ملک است.
                 </span>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {formData.photos.map((url, idx) => (
-                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-stone-800 aspect-square">
-                      <img src={url} alt={`پیش‌نمایش ${idx}`} className="w-full h-full object-cover" />
+                    <div
+                      key={`${url}-${idx}`}
+                      draggable
+                      onDragStart={(e) => {
+                        setDragIndex(idx);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(idx));
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        if (overIndex !== idx) setOverIndex(idx);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragIndex !== null) handleReorderPhotos(dragIndex, idx);
+                        setDragIndex(null);
+                        setOverIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDragIndex(null);
+                        setOverIndex(null);
+                      }}
+                      className={`relative group rounded-xl overflow-hidden border aspect-square cursor-grab active:cursor-grabbing transition-all ${
+                        dragIndex === idx ? 'opacity-40' : ''
+                      } ${
+                        overIndex === idx && dragIndex !== null && dragIndex !== idx
+                          ? 'border-amber-400 ring-2 ring-amber-400/60'
+                          : 'border-stone-800'
+                      }`}
+                    >
+                      <img
+                        src={url}
+                        alt={`پیش‌نمایش ${idx + 1}`}
+                        draggable={false}
+                        className="w-full h-full object-cover pointer-events-none"
+                      />
+                      <span
+                        className={`absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          idx === 0 ? 'bg-amber-500 text-[#0f0f13]' : 'bg-black/70 text-stone-200'
+                        }`}
+                      >
+                        {(idx + 1).toLocaleString('fa-IR')}
+                        {idx === 0 ? ' · کاور' : ''}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleRemovePhoto(idx)}
